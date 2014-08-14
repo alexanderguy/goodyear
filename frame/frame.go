@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"strings"
 	"errors"
-	"fmt"
 )
 
 func readLine(r *bufio.Reader) (s string, err error) {
@@ -79,7 +78,6 @@ func (f *Frame) readPreface(r *bufio.Reader) error {
 func (f *Frame) readBody (r *bufio.Reader) (err error) {
 	var s string
 	s, err = r.ReadString('\000')
-	fmt.Printf("body is %d %s", len(s), s)
 	if err != nil {
 		return
 	}
