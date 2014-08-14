@@ -30,10 +30,10 @@ func (h FrameHeader) Add(key, value string) {
 }
 
 type Frame struct {
-	complete bool
-	cmd string
-	headers FrameHeader
-	body []byte
+	Complete bool
+	Cmd string
+	Headers FrameHeader
+	Body []byte
 }
 
 func (f *Frame) readPreface(r *bufio.Reader) error {
@@ -48,7 +48,7 @@ func (f *Frame) readPreface(r *bufio.Reader) error {
 		return err
 	}
 
-	f.cmd = s
+	f.Cmd = s
 
 	done := false
 
@@ -70,7 +70,7 @@ func (f *Frame) readPreface(r *bufio.Reader) error {
 		}
 		k := s[:i]
 		v := s[i + 1:]
-		f.headers.Add(k, v)
+		f.Headers.Add(k, v)
 	}
 
 	return nil
@@ -86,8 +86,8 @@ func (f *Frame) readBody (r *bufio.Reader) (err error) {
 
 	s = s[:len(s) - 1]
 
-	f.body = []byte(s)
-	f.complete = true
+	f.Body = []byte(s)
+	f.Complete = true
 
 	return
 }
