@@ -5,9 +5,9 @@ import (
 	// since we need to support levels.
 	"bufio"
 	"container/list"
-	"io"
 	"log"
 	"net"
+	"goodyear/frame"
 )
 
 type connState struct {
@@ -50,21 +50,22 @@ func main() {
 
 			r := bufio.NewReader(cs.conn)
 			for {
-				data, err := r.ReadBytes('\n')
+				f, err := frame.NewFrameFromReader(r)
 				if err != nil {
-					if err != io.EOF {
-						log.Print("Failed reading:", err)
-					}
+					log.Printf("Failed parsing frame, dropping conn: %s", err)
 					return
 				}
-				log.Printf("from %d got: %v", cs.id, data)
-				for e := state.conns.Front(); e != nil; e = e.Next() {
-					t := e.Value.(*connState)
-					_, err := t.conn.Write(data)
-					if err != nil {
-						log.Fatal("had an error while writing!")
-					}
-				}
+
+				// log.Printf("from %d got: %v", cs.id, data)
+				// for e := state.conns.Front(); e != nil; e = e.Next() {
+				// 	t := e.Value.(*connState)
+				// 	_, err := t.conn.Write(data)
+				// 	if err != nil {
+				// 		log.Fatal("had an error while writing!")
+				// 	}
+				// }
+
+				log.Printf("conn %d cmd %s", cs.id, f.Cmd)
 			}
 		}(cs)
 	}
