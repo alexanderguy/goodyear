@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"strings"
 	"errors"
+	"strconv"
+	"fmt"
 )
 
 func readLine(r *bufio.Reader) (s string, err error) {
@@ -41,16 +43,11 @@ func (f *Frame) readPreface(r *bufio.Reader) error {
 		err error
 	)
 
-	s, err = readLine(r)
+	var done bool
 
-	if err != nil {
-		return err
-	}
-
-	f.Cmd = s
-
-	done := false
-
+	// Consume any newlines that might have come
+	// in after a previous null.
+	done = false
 	for !done {
 		s, err = readLine(r)
 
@@ -58,6 +55,23 @@ func (f *Frame) readPreface(r *bufio.Reader) error {
 			return err
 		}
 
+		if len(s) != 0 {
+			done = true
+		}
+	}
+
+	f.Cmd = s
+
+	// Grab any headers.
+	done = false
+	for !done {
+		s, err = readLine(r)
+
+		if err != nil {
+			return err
+		}
+
+		// If we find an empty line, we're done with headers.
 		if len(s) == 0 {
 			done = true
 			continue
@@ -75,19 +89,53 @@ func (f *Frame) readPreface(r *bufio.Reader) error {
 	return nil
 }
 
-func (f *Frame) readBody (r *bufio.Reader) (err error) {
-	var s string
-	s, err = r.ReadString('\000')
-	if err != nil {
-		return
+func (f *Frame) readBody (r *bufio.Reader) error {
+	var (
+		err error
+		s string
+	)
+
+	if val, exists := f.Headers["content-length"]; exists {
+		var (
+			v int
+			c byte
+		)
+
+		if v, err = strconv.Atoi(val[0]); err != nil {
+			return err
+		}
+
+		fmt.Printf("content length is %d", v)
+		b := make([]byte, v)
+		var count int
+
+		count, err = r.Read(b)
+		if err != nil {
+			return err
+		}
+
+		if count != v {
+			return errors.New("couldn't read frame body")
+		}
+
+		if c, err = r.ReadByte(); err != nil || c != '\x00' {
+			return errors.New("body incorrectly null terminated")
+		}
+
+		f.Body = b
+	} else {
+		s, err = r.ReadString('\000')
+		if err != nil {
+			return err
+		}
+
+		s = s[:len(s) - 1]
+		f.Body = []byte(s)
 	}
 
-	s = s[:len(s) - 1]
-
-	f.Body = []byte(s)
 	f.Complete = true
 
-	return
+	return nil
 }
 
 func NewFrame() (f *Frame) {

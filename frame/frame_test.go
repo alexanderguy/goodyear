@@ -109,3 +109,49 @@ hello queue a
 		t.Error("we didn't parse the body correctly.")
 	}
 }
+
+func TestBody2(t *testing.T) {
+	r := _FR(_N(`CONNECT
+content-length:1
+
+a`))
+	f, err := NewFrameFromReader(r)
+	if err != nil {
+		t.Error("didn't parse", err)
+		t.FailNow()
+	}
+
+	if f == nil {
+		t.Error("could produce frame")
+		t.FailNow()
+	}
+
+	if !f.Complete {
+		t.Error("we didn't finish the frame.")
+	}
+
+	if bytes.Compare(f.Body, []byte("a")) != 0 {
+		t.Error("we didn't parse a body correctly.")
+	}
+}
+
+
+func TestBody3(t *testing.T) {
+	r := _FR(`CONNECT
+content-length:3
+
+hey`)
+	f, err := NewFrameFromReader(r)
+	if err == nil {
+		t.Error("we shouldn't have parsed correctly.")
+	}
+
+	if f == nil {
+		t.Error("could produce frame")
+		t.FailNow()
+	}
+
+	if f.Complete {
+		t.Error("the frame wasn't finished, why are we reporting that it did?")
+	}
+}
