@@ -1,12 +1,12 @@
 package main
 
 import (
-	// XXX - We need to not use this directly,
-	// since we need to support levels.
 	"bufio"
 	"container/list"
 	"errors"
 	"goodyear/frame"
+	// XXX - We need to not use this directly,
+	// since we need to support levels.
 	"log"
 	"net"
 	"strconv"
