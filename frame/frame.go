@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strconv"
 	"fmt"
+	"bytes"
 )
 
 func readLine(r *bufio.Reader) (s string, err error) {
@@ -138,8 +139,24 @@ func (f *Frame) readBody (r *bufio.Reader) error {
 	return nil
 }
 
-func NewFrame() (f *Frame) {
-	f = &Frame{
+func (f *Frame) ToNetwork() []byte {
+	var buf bytes.Buffer
+	buf.Write([]byte(fmt.Sprintf("%s\r\n", f.Cmd)))
+	for k, v := range f.Headers {
+		for _, w := range v {
+			buf.Write([]byte(fmt.Sprintf("%s:%s\r\n", k, w)))
+		}
+	}
+
+	buf.Write([]byte("\r\n"))
+	buf.Write(f.Body)
+	buf.Write([]byte("\x00"))
+
+	return buf.Bytes()
+}
+
+func NewFrame() *Frame {
+	f := &Frame{
 		false,
 		"", 
 		make(FrameHeader), 

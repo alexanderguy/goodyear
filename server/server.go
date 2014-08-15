@@ -8,13 +8,66 @@ import (
 	"log"
 	"net"
 	"goodyear/frame"
+	"errors"
+	"strconv"
 )
 
+
+type connStatePhase int
+
+const (
+	disconnected connStatePhase = iota
+	connected
+)
 type connState struct {
+	phase connStatePhase
 	conn net.Conn
 	id   int
 	me   *list.Element
+	version string
 }
+
+func (cs *connState) WriteFrame(f *frame.Frame) error {
+	b := f.ToNetwork()
+	n, err := cs.conn.Write(b)
+
+	if err == nil && n != len(b) {
+		err = errors.New("failed to flush complete write to network.")
+	}
+
+	return err
+}
+
+
+
+func (cs *connState) Receipt(id string) error {
+	f := frame.NewFrame()
+	f.Cmd = "RECEIPT"
+	f.Headers.Add("receipt-id", id)
+
+	err := cs.WriteFrame(f)
+	return err
+}
+
+func (cs *connState) Error(ct string, body []byte) error {
+	f := frame.NewFrame()
+
+	f.Cmd = "ERROR"
+	f.Body = body
+
+	f.Headers.Add("content-type", ct)
+	f.Headers.Add("content-length", strconv.FormatUint(uint64(len(f.Body)), 10))
+
+	err := cs.WriteFrame(f)
+
+	return err
+}
+
+func (cs *connState) ErrorString(msg string) error {
+	msg += "\r\n"
+	return cs.Error("text/plain", []byte(msg))
+}
+
 type serverState struct {
 	conns  *list.List
 	serial int
@@ -36,7 +89,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		cs := &connState{conn, state.serial, nil}
+		cs := &connState{disconnected, conn, state.serial, nil, "1.2"}
 		state.serial += 1
 		cs.me = state.conns.PushBack(cs)
 		log.Printf("accepting connection %d", cs.id)
@@ -53,6 +106,26 @@ func main() {
 				f, err := frame.NewFrameFromReader(r)
 				if err != nil {
 					log.Printf("Failed parsing frame, dropping conn: %s", err)
+					cs.ErrorString("failed to parse frame.  good bye!")
+					return
+				}
+
+				switch f.Cmd {
+				case "CONNECT":
+					switch cs.phase {
+					case connected:
+						cs.ErrorString("you're already connected.")
+					case disconnected:
+						cs.phase = connected
+						rf := frame.NewFrame()
+						rf.Cmd = "CONNECTED"
+						cs.WriteFrame(rf)
+					}
+
+				case "DISCONNECT":
+					log.Printf("conn %d requested disconnect", cs.id)
+					cs.phase = disconnected
+					cs.Receipt("derp")
 					return
 				}
 
