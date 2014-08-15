@@ -2,11 +2,11 @@ package frame
 
 import (
 	"bufio"
-	"strings"
-	"errors"
-	"strconv"
-	"fmt"
 	"bytes"
+	"errors"
+	"fmt"
+	"strconv"
+	"strings"
 )
 
 func readLine(r *bufio.Reader) (s string, err error) {
@@ -16,7 +16,7 @@ func readLine(r *bufio.Reader) (s string, err error) {
 	}
 
 	endIdx := len(s) - 1
-	if endIdx != 0 && s[endIdx - 1] == '\r' {
+	if endIdx != 0 && s[endIdx-1] == '\r' {
 		endIdx--
 	}
 
@@ -33,14 +33,14 @@ func (h FrameHeader) Add(key, value string) {
 
 type Frame struct {
 	Complete bool
-	Cmd string
-	Headers FrameHeader
-	Body []byte
+	Cmd      string
+	Headers  FrameHeader
+	Body     []byte
 }
 
 func (f *Frame) readPreface(r *bufio.Reader) error {
 	var (
-		s string
+		s   string
 		err error
 	)
 
@@ -83,17 +83,17 @@ func (f *Frame) readPreface(r *bufio.Reader) error {
 			return errors.New("no key/value delimiter found.")
 		}
 		k := s[:i]
-		v := s[i + 1:]
+		v := s[i+1:]
 		f.Headers.Add(k, v)
 	}
 
 	return nil
 }
 
-func (f *Frame) readBody (r *bufio.Reader) error {
+func (f *Frame) readBody(r *bufio.Reader) error {
 	var (
 		err error
-		s string
+		s   string
 	)
 
 	if val, exists := f.Headers["content-length"]; exists {
@@ -130,7 +130,7 @@ func (f *Frame) readBody (r *bufio.Reader) error {
 			return err
 		}
 
-		s = s[:len(s) - 1]
+		s = s[:len(s)-1]
 		f.Body = []byte(s)
 	}
 
@@ -158,8 +158,8 @@ func (f *Frame) ToNetwork() []byte {
 func NewFrame() *Frame {
 	f := &Frame{
 		false,
-		"", 
-		make(FrameHeader), 
+		"",
+		make(FrameHeader),
 		nil}
 	return f
 }

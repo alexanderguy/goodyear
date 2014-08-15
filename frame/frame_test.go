@@ -1,10 +1,10 @@
 package frame
 
 import (
-	"testing"
-	"strings"
 	"bufio"
 	"bytes"
+	"strings"
+	"testing"
 )
 
 func _F(s string) string {
@@ -53,9 +53,8 @@ host:localhost
 	}
 
 	if failedHeaders {
-		t.Error("bogus header parsing")	
+		t.Error("bogus header parsing")
 	}
-
 
 	if !f.Complete {
 		t.Error("failed to properly parse body.")
@@ -65,7 +64,6 @@ host:localhost
 		}
 	}
 }
-
 
 func TestSend1(t *testing.T) {
 	r := _FR(_N(`SEND
@@ -134,7 +132,6 @@ a`))
 		t.Error("we didn't parse a body correctly.")
 	}
 }
-
 
 func TestBody3(t *testing.T) {
 	r := _FR(`CONNECT

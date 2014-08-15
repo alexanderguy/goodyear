@@ -5,13 +5,12 @@ import (
 	// since we need to support levels.
 	"bufio"
 	"container/list"
+	"errors"
+	"goodyear/frame"
 	"log"
 	"net"
-	"goodyear/frame"
-	"errors"
 	"strconv"
 )
-
 
 type connStatePhase int
 
@@ -19,11 +18,12 @@ const (
 	disconnected connStatePhase = iota
 	connected
 )
+
 type connState struct {
-	phase connStatePhase
-	conn net.Conn
-	id   int
-	me   *list.Element
+	phase   connStatePhase
+	conn    net.Conn
+	id      int
+	me      *list.Element
 	version string
 }
 
@@ -37,8 +37,6 @@ func (cs *connState) WriteFrame(f *frame.Frame) error {
 
 	return err
 }
-
-
 
 func (cs *connState) Receipt(id string) error {
 	f := frame.NewFrame()
