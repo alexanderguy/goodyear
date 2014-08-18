@@ -152,3 +152,32 @@ hey`)
 		t.Error("the frame wasn't finished, why are we reporting that it did?")
 	}
 }
+
+func TestHeader1(t *testing.T) {
+	r := _FR(_N(`CONNECT
+a:hey
+b:there
+a:you
+a:guys
+b:hot
+c:stuff
+
+`))
+	f, err := NewFrameFromReader(r)
+
+	if err != nil {
+		t.Error("we should have parsed.")
+		t.FailNow()
+	}
+
+	h := f.Headers
+
+	a, _ := h.Get("a")
+	b, _ := h.Get("b")
+	c, _ := h.Get("c")
+	t.Log(a, b, c)
+
+	if a != "hey" || b != "there" || c != "stuff" {
+		t.Error("we didn't get the header value we expected.")
+	}
+}

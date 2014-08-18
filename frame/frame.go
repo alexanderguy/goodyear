@@ -31,6 +31,16 @@ func (h FrameHeader) Add(key, value string) {
 	h[key] = append(h[key], value)
 }
 
+func (h FrameHeader) Get(key string) (string, bool) {
+	if v, ok := h[key]; ok {
+		if len(v) > 0 {
+			return v[0], true
+		}
+	}
+
+	return "", false
+}
+
 type Frame struct {
 	Complete bool
 	Cmd      string
