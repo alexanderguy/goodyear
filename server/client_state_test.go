@@ -28,13 +28,22 @@ func Check(t *testing.T, f *frame.Frame, cmd string) {
 	}
 }
 
-func TestTesting(t *testing.T) {
-	incoming := make(chan *frame.Frame, 0)
-	defer func() {
-		close(incoming)
-	}()
 
-	cs := newConnState(nil, 0)
+type fSeq struct {
+	t *testing.T
+	incoming chan *frame.Frame
+	cs *connState
+}
+
+func (f *fSeq) finish() {
+	close(incoming)
+}
+
+func newfSeq(t *testing.T) {
+	f := fSeq{}
+	f.incoming = make(chan *frame.Frame, 0)
+
+	f.cs = newConnState(nil, 0)
 
 	go func() {
 		getFrame := func() *frame.Frame {
@@ -44,6 +53,9 @@ func TestTesting(t *testing.T) {
 
 		cs.HandleIncomingFrames(getFrame)
 	}()
+}
+
+func TestTesting(t *testing.T) {
 
 	incoming<-BF("CONNECT", hdr{"version": "1.1"}, "")
 	Check(t, <-cs.outgoing, "ERROR")
