@@ -66,6 +66,16 @@ func (cs *connState) ErrorString(msg string) error {
 	return cs.Error("text/plain", []byte(msg))
 }
 
+func newConnState(conn net.Conn, connId int) *connState{
+	cs := &connState{}
+	cs.phase = disconnected
+	cs.conn = conn
+	cs.id = connId
+	cs.version = ""
+
+	return cs
+}
+
 type serverState struct {
 	conns  *list.List
 	serial int
@@ -87,7 +97,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		cs := &connState{disconnected, conn, state.serial, nil, "1.2"}
+		cs := newConnState(conn, state.serial)
 		state.serial += 1
 		cs.me = state.conns.PushBack(cs)
 		log.Printf("accepting connection %d", cs.id)
