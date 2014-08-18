@@ -145,7 +145,7 @@ func main() {
 				}
 
 				switch f.Cmd {
-				case "CONNECT":
+				case "CONNECT", "STOMP":
 					supVersion, ok := f.Headers.Get("version")
 
 					if !ok {
