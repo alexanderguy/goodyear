@@ -5,7 +5,9 @@ import (
 	"goodyear/frame"
 )
 
-func BF(cmd string, headers map[string]string, body string) *frame.Frame {
+type hdr map[string]string
+
+func BF(cmd string, headers hdr, body string) *frame.Frame {
 	f := frame.NewFrame()
 	f.Cmd = cmd
 
@@ -19,54 +21,66 @@ func BF(cmd string, headers map[string]string, body string) *frame.Frame {
 	return f
 } 
 
-type hdr map[string]string
 
 
-func Check(t *testing.T, f *frame.Frame, cmd string) {
-	if f.Cmd != cmd {
-		t.Errorf("command didn't match")
-	}
-}
-
-
-type fSeq struct {
+type simpleSeq struct {
 	t *testing.T
 	incoming chan *frame.Frame
 	cs *connState
 }
 
-func (f *fSeq) finish() {
-	close(incoming)
+func (f *simpleSeq) Finish() {
+	close(f.incoming)
+	if _, ok := <-f.cs.outgoing; ok {
+		f.t.Error("we have additional responses when we shouldn't")
+	}
 }
 
-func newfSeq(t *testing.T) {
-	f := fSeq{}
+func (f *simpleSeq) Send(cmd string, headers hdr, body string) {
+	req := BF(cmd, headers, body)
+
+	f.incoming <-req
+}
+
+func (f *simpleSeq) Expect(cmd string) {
+	resp := <-f.cs.outgoing
+	if resp.Cmd != cmd {
+		f.t.Errorf("command didn't match")
+	}
+}
+
+func newSimpleSeq(t *testing.T) *simpleSeq {
+	f := &simpleSeq{}
 	f.incoming = make(chan *frame.Frame, 0)
 
 	f.cs = newConnState(nil, 0)
 
 	go func() {
 		getFrame := func() *frame.Frame {
-			f := <-incoming
-			return f
+			req := <-f.incoming
+			return req
 		}
 
-		cs.HandleIncomingFrames(getFrame)
+		f.cs.HandleIncomingFrames(getFrame)
 	}()
+
+	return f
 }
 
-func TestTesting(t *testing.T) {
 
-	incoming<-BF("CONNECT", hdr{"version": "1.1"}, "")
-	Check(t, <-cs.outgoing, "ERROR")
-	incoming<-BF("CONNECT", hdr{"version": "1.2"}, "")
-	Check(t, <-cs.outgoing, "CONNECTED")
-	incoming<-BF("CONNECT", hdr{"version": "1.2"}, "")
-	Check(t, <-cs.outgoing, "ERROR")
-	incoming<-BF("DISCONNECT", hdr{"receipt": "yoh"}, "")
-	Check(t, <-cs.outgoing, "RECEIPT")
+
+
+func TestTesting(t *testing.T) {
+	s := newSimpleSeq(t)
+
+	s.Send("CONNECT", hdr{"version": "1.1"}, "")
+	s.Expect("ERROR")
+	s.Send("CONNECT", hdr{"version": "1.2"}, "")
+	s.Expect("CONNECTED")
+	s.Send("CONNECT", hdr{"version": "1.2"}, "")
+	s.Expect("ERROR")
+	s.Send("DISCONNECT", hdr{"receipt": "yoh"}, "")
+	s.Expect("RECEIPT")
 	
-	if _, ok := <-cs.outgoing; ok {
-		t.Errorf("Outgoing channel should be closed.")
-	}
+	s.Finish()
 }
