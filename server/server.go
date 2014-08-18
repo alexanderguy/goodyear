@@ -8,7 +8,6 @@ import (
 	// since we need to support levels.
 	"log"
 	"net"
-	"strings"
 )
 
 type serverState struct {
@@ -57,118 +56,18 @@ func main() {
 
 		// Incoming Frame Processing
 		go func(cs *connState) {
-			defer func() {
-				// Signal the outgoing goroutine to close things out.
-				close(cs.outgoing)
-			}()
-
 			r := bufio.NewReader(cs.conn)
-			var curFrame *frame.Frame
 
-			processFrame := func() {
+			getFrame := func() *frame.Frame {
 				f, err := frame.NewFrameFromReader(r)
 				if err == nil {
-					curFrame = f
-					log.Printf("conn %d cmd %s", cs.id, curFrame.Cmd)
-					return
+					return f
 				}
-
-				curFrame = nil
-				cs.phase = unknown
-				log.Printf("Failed parsing frame, dropping conn: %s", err)
-				cs.ErrorString("failed to parse frame.  good bye!")
-				return
+				log.Printf("Failed parsing frame: %s", err)
+				return nil
 			}
 
-			handleReceipt := func() {
-				if v, ok := curFrame.Headers.Get("receipt"); ok {
-					resp := frame.NewFrame()
-					resp.Cmd = "RECEIPT"
-					resp.Headers.Add("receipt-id", v)
-					cs.outgoing <- resp
-				}
-			}
-
-			// Before connection.
-			for cs.phase != connected {
-				processFrame()
-				if curFrame == nil {
-					return
-				}
-
-				switch curFrame.Cmd {
-				case "CONNECT", "STOMP":
-					if _, ok := curFrame.Headers.Get("receipt"); ok {
-						cs.ErrorString("receipt not allowed during connect.")
-						break
-					}
-
-					supVersion, ok := curFrame.Headers.Get("version")
-
-					if !ok {
-						cs.ErrorString("a version header is required")
-						break
-					}
-
-					validVersion := false
-
-					for _, v := range(strings.Split(supVersion, ",")) {
-						if v == "1.2" {
-							validVersion = true
-						}
-					}
-
-					if !validVersion {
-						cs.ErrorString("this server only supports standard version 1.2")
-						break
-					}
-
-
-					cs.version = "1.2"
-					cs.phase = connected
-					resp := frame.NewFrame()
-					resp.Cmd = "CONNECTED"
-					resp.Headers.Add("version", cs.version)
-					if _, ok := curFrame.Headers.Get("heart-beat"); ok {
-						resp.Headers.Add("heart-beat", "0,0")
-					}
-
-					cs.outgoing <- resp
-				default:
-					cs.ErrorString("unknown/unallowed command.")
-				}
-			}
-
-			// Now we're connected.
-			for cs.phase != disconnected {
-				processFrame()
-				if curFrame == nil {
-					return
-				}
-
-				switch curFrame.Cmd {
-				case "CONNECT":
-					cs.ErrorString("you're already connected.")
-
-				case "DISCONNECT":
-					log.Printf("conn %d requested disconnect", cs.id)
-					cs.phase = disconnected
-
-				default:
-					cs.ErrorString("unknown command.")
-				}
-
-				// log.Printf("from %d got: %v", cs.id, data)
-				// for e := state.conns.Front(); e != nil; e = e.Next() {
-				// 	t := e.Value.(*connState)
-				// 	_, err := t.conn.Write(data)
-				// 	if err != nil {
-				// 		log.Fatal("had an error while writing!")
-				// 	}
-				// }
-
-				handleReceipt()
-			}
+			cs.HandleIncomingFrames(getFrame)
 		}(cs)
 	}
 }
