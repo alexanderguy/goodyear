@@ -171,6 +171,10 @@ func main() {
 					rf := frame.NewFrame()
 					rf.Cmd = "CONNECTED"
 					rf.Headers.Add("version", cs.version)
+					if _, ok := f.Headers.Get("heart-beat"); ok {
+						rf.Headers.Add("heart-beat", "0,0")
+					}
+
 					cs.outgoing <- rf
 				default:
 					cs.ErrorString("unknown/unallowed command.")
