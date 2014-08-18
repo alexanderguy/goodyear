@@ -1,7 +1,6 @@
 package main
 
 import (
-	"container/list"
 	"errors"
 	"goodyear/frame"
 	// XXX - We need to not use this directly,
@@ -24,7 +23,6 @@ type connState struct {
 	phase   connStatePhase
 	conn    net.Conn
 	id      int
-	me      *list.Element
 	version string
 	outgoing chan *frame.Frame
 }

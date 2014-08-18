@@ -38,16 +38,16 @@ func main() {
 		cs := newConnState(conn, state.serial)
 		state.serial += 1
 		state.connsLock.Lock()
-		cs.me = state.conns.PushBack(cs)
+		thisConn := state.conns.PushBack(cs)
 		state.connsLock.Unlock()
 		log.Printf("accepting connection %d", cs.id)
 
 		// Outgoing Frames
-		go func(cs *connState) {
+		go func(cs *connState, myElement *list.Element) {
 			defer func() {
 				log.Print("taking down conn ", cs.id)
 				state.connsLock.Lock()
-				state.conns.Remove(cs.me)
+				state.conns.Remove(myElement)
 				state.connsLock.Unlock()
 				cs.conn.Close()
 			}()
@@ -60,7 +60,7 @@ func main() {
 				}
 			}
 
-		}(cs)
+		}(cs, thisConn)
 
 		// Incoming Frame Processing
 		go func(cs *connState) {
