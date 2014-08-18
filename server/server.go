@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"strconv"
+	"strings"
 )
 
 type connStatePhase int
@@ -122,28 +123,73 @@ func main() {
 			}()
 
 			r := bufio.NewReader(cs.conn)
-			for cs.phase != disconnected {
+
+			processFrame := func() (*frame.Frame) {
 				f, err := frame.NewFrameFromReader(r)
-				if err != nil {
-					log.Printf("Failed parsing frame, dropping conn: %s", err)
-					cs.ErrorString("failed to parse frame.  good bye!")
+				if err == nil {
+					return f
+				}
+
+				cs.phase = unknown
+				log.Printf("Failed parsing frame, dropping conn: %s", err)
+				cs.ErrorString("failed to parse frame.  good bye!")
+				return nil
+			}
+
+			// Before connection.
+			for cs.phase != connected {
+				f := processFrame()
+				if f == nil {
 					return
 				}
 
 				switch f.Cmd {
 				case "CONNECT":
-					if cs.phase == connected {
-						cs.ErrorString("you're already connected.")
+					supVersion, ok := f.Headers.Get("version")
+
+					if !ok {
+						cs.ErrorString("a version header is required")
 					} else {
-						cs.phase = connected
-						rf := frame.NewFrame()
-						rf.Cmd = "CONNECTED"
-						cs.outgoing <- rf
+						validVersion := false
+
+						for _, v := range(strings.Split(supVersion, ",")) {
+							if v == "1.2" {
+								validVersion = true
+							}
+						}
+
+						if !validVersion {
+							cs.ErrorString("this server only supports standard version 1.2")
+						} else {
+							cs.phase = connected
+							rf := frame.NewFrame()
+							rf.Cmd = "CONNECTED"
+							cs.outgoing <- rf
+						}
 					}
+
+				default:
+					cs.ErrorString("unknown/unallowed command.")
+				}
+			}
+
+			// Now we're connected.
+			for cs.phase != disconnected {
+				f := processFrame()
+				if f == nil {
+					return
+				}
+
+				switch f.Cmd {
+				case "CONNECT":
+					cs.ErrorString("you're already connected.")
 
 				case "DISCONNECT":
 					log.Printf("conn %d requested disconnect", cs.id)
 					cs.phase = disconnected
+
+				default:
+					cs.ErrorString("unknown command.")
 				}
 
 				// log.Printf("from %d got: %v", cs.id, data)
