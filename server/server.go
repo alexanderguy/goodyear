@@ -8,9 +8,11 @@ import (
 	// since we need to support levels.
 	"log"
 	"net"
+	"sync"
 )
 
 type serverState struct {
+	connsLock sync.RWMutex
 	conns  *list.List
 	serial int
 }
@@ -18,7 +20,9 @@ type serverState struct {
 const LISTENING_ADDR = ":61613"
 
 func main() {
-	state := serverState{list.New(), 0}
+	state := serverState{}
+	state.serial = 0
+	state.conns = list.New()
 
 	log.Print("Listening on address ", LISTENING_ADDR)
 	l, err := net.Listen("tcp", LISTENING_ADDR)
@@ -33,14 +37,18 @@ func main() {
 		}
 		cs := newConnState(conn, state.serial)
 		state.serial += 1
+		state.connsLock.Lock()
 		cs.me = state.conns.PushBack(cs)
+		state.connsLock.Unlock()
 		log.Printf("accepting connection %d", cs.id)
 
 		// Outgoing Frames
 		go func(cs *connState) {
 			defer func() {
 				log.Print("taking down conn ", cs.id)
+				state.connsLock.Lock()
 				state.conns.Remove(cs.me)
+				state.connsLock.Unlock()
 				cs.conn.Close()
 			}()
 
