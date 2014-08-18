@@ -15,8 +15,9 @@ import (
 type connStatePhase int
 
 const (
-	disconnected connStatePhase = iota
+	unknown connStatePhase = iota
 	connected
+	disconnected
 )
 
 type connState struct {
@@ -39,15 +40,6 @@ func (cs *connState) WriteFrame(f *frame.Frame) error {
 	return err
 }
 
-func (cs *connState) Receipt(id string) error {
-	f := frame.NewFrame()
-	f.Cmd = "RECEIPT"
-	f.Headers.Add("receipt-id", id)
-
-	cs.outgoing <- f
-	return nil
-}
-
 func (cs *connState) Error(ct string, body []byte) error {
 	f := frame.NewFrame()
 
@@ -68,7 +60,7 @@ func (cs *connState) ErrorString(msg string) error {
 
 func newConnState(conn net.Conn, connId int) *connState{
 	cs := &connState{}
-	cs.phase = disconnected
+	cs.phase = unknown
 	cs.conn = conn
 	cs.id = connId
 	cs.version = ""
@@ -112,9 +104,7 @@ func main() {
 				cs.conn.Close()
 			}()
 
-			log.Printf("about to wait on channel")
 			for f := range cs.outgoing {
-				log.Printf("write loop!")
 				err := cs.WriteFrame(f)
 				if err != nil {
 					log.Printf("Error writing to conn %d: %s", cs.id, err)
@@ -126,10 +116,13 @@ func main() {
 
 		// Incoming Frame Processing
 		go func(cs *connState) {
+			defer func() {
+				// Signal the outgoing goroutine to close things out.
+				close(cs.outgoing)
+			}()
 
-			log.Printf("in reader loop!")
 			r := bufio.NewReader(cs.conn)
-			for {
+			for cs.phase != disconnected {
 				f, err := frame.NewFrameFromReader(r)
 				if err != nil {
 					log.Printf("Failed parsing frame, dropping conn: %s", err)
@@ -139,10 +132,9 @@ func main() {
 
 				switch f.Cmd {
 				case "CONNECT":
-					switch cs.phase {
-					case connected:
+					if cs.phase == connected {
 						cs.ErrorString("you're already connected.")
-					case disconnected:
+					} else {
 						cs.phase = connected
 						rf := frame.NewFrame()
 						rf.Cmd = "CONNECTED"
@@ -152,10 +144,6 @@ func main() {
 				case "DISCONNECT":
 					log.Printf("conn %d requested disconnect", cs.id)
 					cs.phase = disconnected
-					cs.Receipt("derp")
-					// Signal the outgoing goroutine to close things out.
-					close(cs.outgoing)
-					return
 				}
 
 				// log.Printf("from %d got: %v", cs.id, data)
@@ -168,6 +156,17 @@ func main() {
 				// }
 
 				log.Printf("conn %d cmd %s", cs.id, f.Cmd)
+
+				if v, ok := f.Headers.Get("receipt"); ok {
+					if f.Cmd == "CONNECT" {
+						cs.ErrorString("receipt-id not allowed during connect.")
+					} else {
+						f := frame.NewFrame()
+						f.Cmd = "RECEIPT"
+						f.Headers.Add("receipt-id", v)
+						cs.outgoing <- f
+					}
+				}
 			}
 		}(cs)
 	}
