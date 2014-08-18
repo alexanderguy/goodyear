@@ -210,9 +210,10 @@ func main() {
 				// }
 
 				if v, ok := f.Headers.Get("receipt"); ok {
-					if f.Cmd == "CONNECT" {
+					switch f.Cmd {
+					case "CONNECT":
 						cs.ErrorString("receipt-id not allowed during connect.")
-					} else {
+					default:
 						f := frame.NewFrame()
 						f.Cmd = "RECEIPT"
 						f.Headers.Add("receipt-id", v)
