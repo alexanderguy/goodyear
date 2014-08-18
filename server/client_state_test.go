@@ -1,8 +1,8 @@
 package main
 
 import (
-	"testing"
 	"goodyear/frame"
+	"testing"
 )
 
 type hdr map[string]string
@@ -19,14 +19,12 @@ func BF(cmd string, headers hdr, body string) *frame.Frame {
 	f.Complete = true
 
 	return f
-} 
-
-
+}
 
 type simpleSeq struct {
-	t *testing.T
+	t        *testing.T
 	incoming chan *frame.Frame
-	cs *connState
+	cs       *connState
 }
 
 func (f *simpleSeq) Finish() {
@@ -39,7 +37,7 @@ func (f *simpleSeq) Finish() {
 func (f *simpleSeq) Send(cmd string, headers hdr, body string) {
 	req := BF(cmd, headers, body)
 
-	f.incoming <-req
+	f.incoming <- req
 }
 
 func (f *simpleSeq) Expect(cmd string) {
@@ -55,7 +53,7 @@ func (f *simpleSeq) ExpectHeaders(cmd string, headers hdr) {
 		f.t.Errorf("command didn't match")
 	}
 
-	for k, v := range(headers) {
+	for k, v := range headers {
 		if h, ok := resp.Headers.Get(k); !ok || h != v {
 			f.t.Errorf("header didn't match %s: %s != %s", k, v, h)
 		}
@@ -80,9 +78,6 @@ func newSimpleSeq(t *testing.T) *simpleSeq {
 	return f
 }
 
-
-
-
 func TestTesting(t *testing.T) {
 	s := newSimpleSeq(t)
 
@@ -94,6 +89,6 @@ func TestTesting(t *testing.T) {
 	s.Expect("ERROR")
 	s.Send("DISCONNECT", hdr{"receipt": "yoh"}, "")
 	s.ExpectHeaders("RECEIPT", hdr{"receipt-id": "yoh"})
-	
+
 	s.Finish()
 }

@@ -13,8 +13,8 @@ import (
 
 type serverState struct {
 	connsLock sync.RWMutex
-	conns  *list.List
-	serial int
+	conns     *list.List
+	serial    int
 }
 
 const LISTENING_ADDR = ":61613"

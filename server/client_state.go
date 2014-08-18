@@ -5,9 +5,9 @@ import (
 	"goodyear/frame"
 	// XXX - We need to not use this directly,
 	// since we need to support levels.
+	"log"
 	"net"
 	"strconv"
-	"log"
 	"strings"
 )
 
@@ -20,10 +20,10 @@ const (
 )
 
 type connState struct {
-	phase   connStatePhase
-	conn    net.Conn
-	id      int
-	version string
+	phase    connStatePhase
+	conn     net.Conn
+	id       int
+	version  string
 	outgoing chan *frame.Frame
 }
 
@@ -87,7 +87,6 @@ func (cs *connState) HandleIncomingFrames(getFrame frameProvider) {
 		}
 	}
 
-
 	// Before connection.
 	for cs.phase != connected {
 		processFrame()
@@ -111,7 +110,7 @@ func (cs *connState) HandleIncomingFrames(getFrame frameProvider) {
 
 			validVersion := false
 
-			for _, v := range(strings.Split(supVersion, ",")) {
+			for _, v := range strings.Split(supVersion, ",") {
 				if v == "1.2" {
 					validVersion = true
 				}
@@ -121,7 +120,6 @@ func (cs *connState) HandleIncomingFrames(getFrame frameProvider) {
 				cs.ErrorString("this server only supports standard version 1.2")
 				break
 			}
-
 
 			cs.version = "1.2"
 			cs.phase = connected
@@ -161,14 +159,13 @@ func (cs *connState) HandleIncomingFrames(getFrame frameProvider) {
 	}
 }
 
-func newConnState(conn net.Conn, connId int) *connState{
+func newConnState(conn net.Conn, connId int) *connState {
 	cs := &connState{}
 	cs.phase = unknown
 	cs.conn = conn
 	cs.id = connId
 	cs.version = ""
 	cs.outgoing = make(chan *frame.Frame, 0)
-
 
 	return cs
 }
