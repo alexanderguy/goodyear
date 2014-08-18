@@ -127,6 +127,7 @@ func main() {
 			processFrame := func() (*frame.Frame) {
 				f, err := frame.NewFrameFromReader(r)
 				if err == nil {
+					log.Printf("conn %d cmd %s", cs.id, f.Cmd)
 					return f
 				}
 
@@ -149,25 +150,28 @@ func main() {
 
 					if !ok {
 						cs.ErrorString("a version header is required")
-					} else {
-						validVersion := false
+						break
+					}
 
-						for _, v := range(strings.Split(supVersion, ",")) {
-							if v == "1.2" {
-								validVersion = true
-							}
-						}
+					validVersion := false
 
-						if !validVersion {
-							cs.ErrorString("this server only supports standard version 1.2")
-						} else {
-							cs.phase = connected
-							rf := frame.NewFrame()
-							rf.Cmd = "CONNECTED"
-							cs.outgoing <- rf
+					for _, v := range(strings.Split(supVersion, ",")) {
+						if v == "1.2" {
+							validVersion = true
 						}
 					}
 
+					if !validVersion {
+						cs.ErrorString("this server only supports standard version 1.2")
+						break
+					}
+
+					cs.version = "1.2"
+					cs.phase = connected
+					rf := frame.NewFrame()
+					rf.Cmd = "CONNECTED"
+					rf.Headers.Add("version", cs.version)
+					cs.outgoing <- rf
 				default:
 					cs.ErrorString("unknown/unallowed command.")
 				}
@@ -200,8 +204,6 @@ func main() {
 				// 		log.Fatal("had an error while writing!")
 				// 	}
 				// }
-
-				log.Printf("conn %d cmd %s", cs.id, f.Cmd)
 
 				if v, ok := f.Headers.Get("receipt"); ok {
 					if f.Cmd == "CONNECT" {
