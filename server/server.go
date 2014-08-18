@@ -123,30 +123,47 @@ func main() {
 			}()
 
 			r := bufio.NewReader(cs.conn)
+			var curFrame *frame.Frame
 
-			processFrame := func() (*frame.Frame) {
+			processFrame := func() {
 				f, err := frame.NewFrameFromReader(r)
 				if err == nil {
-					log.Printf("conn %d cmd %s", cs.id, f.Cmd)
-					return f
+					curFrame = f
+					log.Printf("conn %d cmd %s", cs.id, curFrame.Cmd)
+					return
 				}
 
+				curFrame = nil
 				cs.phase = unknown
 				log.Printf("Failed parsing frame, dropping conn: %s", err)
 				cs.ErrorString("failed to parse frame.  good bye!")
-				return nil
+				return
+			}
+
+			handleReceipt := func() {
+				if v, ok := curFrame.Headers.Get("receipt"); ok {
+					resp := frame.NewFrame()
+					resp.Cmd = "RECEIPT"
+					resp.Headers.Add("receipt-id", v)
+					cs.outgoing <- resp
+				}
 			}
 
 			// Before connection.
 			for cs.phase != connected {
-				f := processFrame()
-				if f == nil {
+				processFrame()
+				if curFrame == nil {
 					return
 				}
 
-				switch f.Cmd {
+				switch curFrame.Cmd {
 				case "CONNECT", "STOMP":
-					supVersion, ok := f.Headers.Get("version")
+					if _, ok := curFrame.Headers.Get("receipt"); ok {
+						cs.ErrorString("receipt not allowed during connect.")
+						break
+					}
+
+					supVersion, ok := curFrame.Headers.Get("version")
 
 					if !ok {
 						cs.ErrorString("a version header is required")
@@ -166,16 +183,17 @@ func main() {
 						break
 					}
 
+
 					cs.version = "1.2"
 					cs.phase = connected
-					rf := frame.NewFrame()
-					rf.Cmd = "CONNECTED"
-					rf.Headers.Add("version", cs.version)
-					if _, ok := f.Headers.Get("heart-beat"); ok {
-						rf.Headers.Add("heart-beat", "0,0")
+					resp := frame.NewFrame()
+					resp.Cmd = "CONNECTED"
+					resp.Headers.Add("version", cs.version)
+					if _, ok := curFrame.Headers.Get("heart-beat"); ok {
+						resp.Headers.Add("heart-beat", "0,0")
 					}
 
-					cs.outgoing <- rf
+					cs.outgoing <- resp
 				default:
 					cs.ErrorString("unknown/unallowed command.")
 				}
@@ -183,12 +201,12 @@ func main() {
 
 			// Now we're connected.
 			for cs.phase != disconnected {
-				f := processFrame()
-				if f == nil {
+				processFrame()
+				if curFrame == nil {
 					return
 				}
 
-				switch f.Cmd {
+				switch curFrame.Cmd {
 				case "CONNECT":
 					cs.ErrorString("you're already connected.")
 
@@ -209,17 +227,7 @@ func main() {
 				// 	}
 				// }
 
-				if v, ok := f.Headers.Get("receipt"); ok {
-					switch f.Cmd {
-					case "CONNECT":
-						cs.ErrorString("receipt not allowed during connect.")
-					default:
-						f := frame.NewFrame()
-						f.Cmd = "RECEIPT"
-						f.Headers.Add("receipt-id", v)
-						cs.outgoing <- f
-					}
-				}
+				handleReceipt()
 			}
 		}(cs)
 	}
