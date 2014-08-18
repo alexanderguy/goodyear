@@ -25,6 +25,7 @@ type connState struct {
 	id      int
 	me      *list.Element
 	version string
+	outgoing chan *frame.Frame
 }
 
 func (cs *connState) WriteFrame(f *frame.Frame) error {
@@ -43,8 +44,8 @@ func (cs *connState) Receipt(id string) error {
 	f.Cmd = "RECEIPT"
 	f.Headers.Add("receipt-id", id)
 
-	err := cs.WriteFrame(f)
-	return err
+	cs.outgoing <- f
+	return nil
 }
 
 func (cs *connState) Error(ct string, body []byte) error {
@@ -56,9 +57,8 @@ func (cs *connState) Error(ct string, body []byte) error {
 	f.Headers.Add("content-type", ct)
 	f.Headers.Add("content-length", strconv.FormatUint(uint64(len(f.Body)), 10))
 
-	err := cs.WriteFrame(f)
-
-	return err
+	cs.outgoing <- f
+	return nil
 }
 
 func (cs *connState) ErrorString(msg string) error {
@@ -72,6 +72,8 @@ func newConnState(conn net.Conn, connId int) *connState{
 	cs.conn = conn
 	cs.id = connId
 	cs.version = ""
+	cs.outgoing = make(chan *frame.Frame, 0)
+
 
 	return cs
 }
@@ -102,6 +104,7 @@ func main() {
 		cs.me = state.conns.PushBack(cs)
 		log.Printf("accepting connection %d", cs.id)
 
+		// Outgoing Frames
 		go func(cs *connState) {
 			defer func() {
 				log.Print("taking down conn ", cs.id)
@@ -109,6 +112,22 @@ func main() {
 				cs.conn.Close()
 			}()
 
+			log.Printf("about to wait on channel")
+			for f := range cs.outgoing {
+				log.Printf("write loop!")
+				err := cs.WriteFrame(f)
+				if err != nil {
+					log.Printf("Error writing to conn %d: %s", cs.id, err)
+					return
+				}
+			}
+
+		}(cs)
+
+		// Incoming Frame Processing
+		go func(cs *connState) {
+
+			log.Printf("in reader loop!")
 			r := bufio.NewReader(cs.conn)
 			for {
 				f, err := frame.NewFrameFromReader(r)
@@ -127,13 +146,15 @@ func main() {
 						cs.phase = connected
 						rf := frame.NewFrame()
 						rf.Cmd = "CONNECTED"
-						cs.WriteFrame(rf)
+						cs.outgoing <- rf
 					}
 
 				case "DISCONNECT":
 					log.Printf("conn %d requested disconnect", cs.id)
 					cs.phase = disconnected
 					cs.Receipt("derp")
+					// Signal the outgoing goroutine to close things out.
+					close(cs.outgoing)
 					return
 				}
 
