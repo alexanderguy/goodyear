@@ -49,10 +49,23 @@ func (f *simpleSeq) Expect(cmd string) {
 	}
 }
 
+func (f *simpleSeq) ExpectHeaders(cmd string, headers hdr) {
+	resp := <-f.cs.outgoing
+	if resp.Cmd != cmd {
+		f.t.Errorf("command didn't match")
+	}
+
+	for k, v := range(headers) {
+		if h, ok := resp.Headers.Get(k); !ok || h != v {
+			f.t.Errorf("header didn't match %s: %s != %s", k, v, h)
+		}
+	}
+}
+
 func newSimpleSeq(t *testing.T) *simpleSeq {
 	f := &simpleSeq{}
 	f.incoming = make(chan *frame.Frame, 0)
-
+	f.t = t
 	f.cs = newConnState(nil, 0)
 
 	go func() {
@@ -80,7 +93,7 @@ func TestTesting(t *testing.T) {
 	s.Send("CONNECT", hdr{"version": "1.2"}, "")
 	s.Expect("ERROR")
 	s.Send("DISCONNECT", hdr{"receipt": "yoh"}, "")
-	s.Expect("RECEIPT")
+	s.ExpectHeaders("RECEIPT", hdr{"receipt-id": "yoh"})
 	
 	s.Finish()
 }
