@@ -116,7 +116,6 @@ func (f *Frame) readBody(r *bufio.Reader) error {
 			return err
 		}
 
-		fmt.Printf("content length is %d", v)
 		b := make([]byte, v)
 		var count int
 

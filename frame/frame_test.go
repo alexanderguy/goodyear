@@ -175,7 +175,6 @@ c:stuff
 	a, _ := h.Get("a")
 	b, _ := h.Get("b")
 	c, _ := h.Get("c")
-	t.Log(a, b, c)
 
 	if a != "hey" || b != "there" || c != "stuff" {
 		t.Error("we didn't get the header value we expected.")
