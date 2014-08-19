@@ -24,7 +24,7 @@ func BF(cmd string, headers hdr, body string) *frame.Frame {
 type simpleSeq struct {
 	t        *testing.T
 	incoming chan *frame.Frame
-	cs       *connState
+	cs       *clientState
 }
 
 func (f *simpleSeq) Finish() {
@@ -64,7 +64,7 @@ func newSimpleSeq(t *testing.T) *simpleSeq {
 	f := &simpleSeq{}
 	f.incoming = make(chan *frame.Frame, 0)
 	f.t = t
-	f.cs = newConnState(0)
+	f.cs = newClientState(0)
 
 	go func() {
 		getFrame := func() *frame.Frame {

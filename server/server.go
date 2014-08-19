@@ -35,7 +35,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		cs := newConnState(state.serial)
+		cs := newClientState(state.serial)
 		state.serial += 1
 		state.connsLock.Lock()
 		thisConn := state.conns.PushBack(cs)
@@ -43,7 +43,7 @@ func main() {
 		log.Printf("accepting connection %d", cs.id)
 
 		// Outgoing Frames
-		go func(conn net.Conn, cs *connState, myElement *list.Element) {
+		go func(conn net.Conn, cs *clientState, myElement *list.Element) {
 			defer func() {
 				log.Print("taking down conn ", cs.id)
 				state.connsLock.Lock()
@@ -67,7 +67,7 @@ func main() {
 		}(conn, cs, thisConn)
 
 		// Incoming Frame Processing
-		go func(conn net.Conn, cs *connState) {
+		go func(conn net.Conn, cs *clientState) {
 			r := bufio.NewReader(conn)
 
 			getFrame := func() *frame.Frame {

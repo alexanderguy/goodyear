@@ -9,23 +9,23 @@ import (
 	"strings"
 )
 
-type connStatePhase int
+type clientStatePhase int
 
 const (
-	opened connStatePhase = iota
+	opened clientStatePhase = iota
 	connected
 	disconnected
 	errorPhase
 )
 
-type connState struct {
-	phase    connStatePhase
+type clientState struct {
+	phase    clientStatePhase
 	id       int
 	version  string
 	outgoing chan *frame.Frame
 }
 
-func (cs *connState) Error(ct string, body []byte) error {
+func (cs *clientState) Error(ct string, body []byte) error {
 	f := frame.NewFrame()
 
 	f.Cmd = "ERROR"
@@ -40,14 +40,14 @@ func (cs *connState) Error(ct string, body []byte) error {
 	return nil
 }
 
-func (cs *connState) ErrorString(msg string) error {
+func (cs *clientState) ErrorString(msg string) error {
 	msg += "\r\n"
 	return cs.Error("text/plain", []byte(msg))
 }
 
 type frameProvider func() *frame.Frame
 
-func (cs *connState) HandleIncomingFrames(getFrame frameProvider) {
+func (cs *clientState) HandleIncomingFrames(getFrame frameProvider) {
 	defer func() {
 		// Signal the outgoing goroutine to close things out.
 		close(cs.outgoing)
@@ -147,8 +147,8 @@ func (cs *connState) HandleIncomingFrames(getFrame frameProvider) {
 	}
 }
 
-func newConnState(connId int) *connState {
-	cs := &connState{}
+func newClientState(connId int) *clientState {
+	cs := &clientState{}
 	cs.phase = opened
 	cs.id = connId
 	cs.version = ""
