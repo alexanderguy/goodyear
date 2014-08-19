@@ -35,7 +35,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		cs := newConnState(conn, state.serial)
+		cs := newConnState(state.serial)
 		state.serial += 1
 		state.connsLock.Lock()
 		thisConn := state.conns.PushBack(cs)
@@ -43,28 +43,32 @@ func main() {
 		log.Printf("accepting connection %d", cs.id)
 
 		// Outgoing Frames
-		go func(cs *connState, myElement *list.Element) {
+		go func(conn net.Conn, cs *connState, myElement *list.Element) {
 			defer func() {
 				log.Print("taking down conn ", cs.id)
 				state.connsLock.Lock()
 				state.conns.Remove(myElement)
 				state.connsLock.Unlock()
-				cs.conn.Close()
+				conn.Close()
 			}()
 
 			for f := range cs.outgoing {
-				err := cs.WriteFrame(f)
+				b := f.ToNetwork()
+				n, err := conn.Write(b)
+
 				if err != nil {
 					log.Printf("Error writing to conn %d: %s", cs.id, err)
-					return
+					cs.phase = errorPhase
+				} else if n != len(b) {
+					log.Printf("Short write while sending to client conn %d", cs.id)
+					cs.phase = errorPhase
 				}
 			}
-
-		}(cs, thisConn)
+		}(conn, cs, thisConn)
 
 		// Incoming Frame Processing
-		go func(cs *connState) {
-			r := bufio.NewReader(cs.conn)
+		go func(conn net.Conn, cs *connState) {
+			r := bufio.NewReader(conn)
 
 			getFrame := func() *frame.Frame {
 				f, err := frame.NewFrameFromReader(r)
@@ -76,6 +80,6 @@ func main() {
 			}
 
 			cs.HandleIncomingFrames(getFrame)
-		}(cs)
+		}(conn, cs)
 	}
 }

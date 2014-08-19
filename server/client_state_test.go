@@ -64,7 +64,7 @@ func newSimpleSeq(t *testing.T) *simpleSeq {
 	f := &simpleSeq{}
 	f.incoming = make(chan *frame.Frame, 0)
 	f.t = t
-	f.cs = newConnState(nil, 0)
+	f.cs = newConnState(0)
 
 	go func() {
 		getFrame := func() *frame.Frame {

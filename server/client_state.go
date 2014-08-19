@@ -1,12 +1,10 @@
 package main
 
 import (
-	"errors"
 	"goodyear/frame"
 	// XXX - We need to not use this directly,
 	// since we need to support levels.
 	"log"
-	"net"
 	"strconv"
 	"strings"
 )
@@ -22,21 +20,9 @@ const (
 
 type connState struct {
 	phase    connStatePhase
-	conn     net.Conn
 	id       int
 	version  string
 	outgoing chan *frame.Frame
-}
-
-func (cs *connState) WriteFrame(f *frame.Frame) error {
-	b := f.ToNetwork()
-	n, err := cs.conn.Write(b)
-
-	if err == nil && n != len(b) {
-		err = errors.New("failed to flush complete write to network.")
-	}
-
-	return err
 }
 
 func (cs *connState) Error(ct string, body []byte) error {
@@ -161,10 +147,9 @@ func (cs *connState) HandleIncomingFrames(getFrame frameProvider) {
 	}
 }
 
-func newConnState(conn net.Conn, connId int) *connState {
+func newConnState(connId int) *connState {
 	cs := &connState{}
 	cs.phase = opened
-	cs.conn = conn
 	cs.id = connId
 	cs.version = ""
 	cs.outgoing = make(chan *frame.Frame, 0)
