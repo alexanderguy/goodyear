@@ -78,17 +78,38 @@ func newSimpleSeq(t *testing.T) *simpleSeq {
 	return f
 }
 
-func TestTesting(t *testing.T) {
+func TestBadVersion1(t *testing.T) {
 	s := newSimpleSeq(t)
 
 	s.Send("CONNECT", hdr{"version": "1.1"}, "")
 	s.Expect("ERROR")
+	s.Finish()
+}
+
+func TestBadVersion2(t *testing.T) {
+	s := newSimpleSeq(t)
+
+	s.Send("CONNECT", hdr{"version": "1.1,1.3,blarg"}, "")
+	s.Expect("ERROR")
+	s.Finish()
+}
+
+func TestConnection1(t *testing.T) {
+	s := newSimpleSeq(t)
+
 	s.Send("CONNECT", hdr{"version": "1.2"}, "")
 	s.Expect("CONNECTED")
-	s.Send("CONNECT", hdr{"version": "1.2"}, "")
-	s.Expect("ERROR")
 	s.Send("DISCONNECT", hdr{"receipt": "yoh"}, "")
 	s.ExpectHeaders("RECEIPT", hdr{"receipt-id": "yoh"})
+	s.Finish()
+}
 
+func TestConnection2(t *testing.T) {
+	s := newSimpleSeq(t)
+
+	s.Send("CONNECT", hdr{"version": "1.2"}, "")
+	s.Expect("CONNECTED")
+	s.Send("DISCONNECT", hdr{"receipt": "yoh"}, "")
+	s.ExpectHeaders("RECEIPT", hdr{"receipt-id": "yoh"})
 	s.Finish()
 }

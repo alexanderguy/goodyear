@@ -14,9 +14,10 @@ import (
 type connStatePhase int
 
 const (
-	unknown connStatePhase = iota
+	opened connStatePhase = iota
 	connected
 	disconnected
+	errorPhase
 )
 
 type connState struct {
@@ -48,6 +49,8 @@ func (cs *connState) Error(ct string, body []byte) error {
 	f.Headers.Add("content-length", strconv.FormatUint(uint64(len(f.Body)), 10))
 
 	cs.outgoing <- f
+	cs.phase = errorPhase
+
 	return nil
 }
 
@@ -73,7 +76,6 @@ func (cs *connState) HandleIncomingFrames(getFrame frameProvider) {
 		}
 
 		curFrame = nil
-		cs.phase = unknown
 		cs.ErrorString("failed to parse frame.  good bye!")
 		return
 	}
@@ -88,7 +90,7 @@ func (cs *connState) HandleIncomingFrames(getFrame frameProvider) {
 	}
 
 	// Before connection.
-	for cs.phase != connected {
+	for cs.phase == opened {
 		processFrame()
 		if curFrame == nil {
 			return
@@ -137,7 +139,7 @@ func (cs *connState) HandleIncomingFrames(getFrame frameProvider) {
 	}
 
 	// Now we're connected.
-	for cs.phase != disconnected {
+	for cs.phase == connected {
 		processFrame()
 		if curFrame == nil {
 			return
@@ -161,7 +163,7 @@ func (cs *connState) HandleIncomingFrames(getFrame frameProvider) {
 
 func newConnState(conn net.Conn, connId int) *connState {
 	cs := &connState{}
-	cs.phase = unknown
+	cs.phase = opened
 	cs.conn = conn
 	cs.id = connId
 	cs.version = ""
