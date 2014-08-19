@@ -148,7 +148,7 @@ func (f *Frame) readBody(r *bufio.Reader) error {
 	return nil
 }
 
-func (f *Frame) ToNetwork() []byte {
+func (f *Frame) Bytes() []byte {
 	var buf bytes.Buffer
 	buf.Write([]byte(fmt.Sprintf("%s\r\n", f.Cmd)))
 	for k, v := range f.Headers {

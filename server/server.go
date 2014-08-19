@@ -53,7 +53,7 @@ func main() {
 			}()
 
 			for f := range cs.outgoing {
-				b := f.ToNetwork()
+				b := f.Bytes()
 				n, err := conn.Write(b)
 
 				if err != nil {
