@@ -4,10 +4,10 @@ import (
 	"goodyear/frame"
 	// XXX - We need to not use this directly,
 	// since we need to support levels.
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
-	"fmt"
 )
 
 type clientSubAckMode int
@@ -19,8 +19,8 @@ const (
 )
 
 type clientSub struct {
-	id string
-	dest string
+	id      string
+	dest    string
 	ackMode clientSubAckMode
 }
 
@@ -71,7 +71,7 @@ func (cs *clientState) handleCmdSUBSCRIBE(f *frame.Frame) {
 	}
 
 	if ack, ok := f.Headers.Get("ack"); ok {
-		switch (ack) {
+		switch ack {
 		case "auto":
 			s.ackMode = ackModeAuto
 		case "client":
