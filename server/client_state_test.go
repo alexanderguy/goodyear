@@ -81,7 +81,7 @@ func newSimpleSeq(t *testing.T) *simpleSeq {
 func TestBadVersion1(t *testing.T) {
 	s := newSimpleSeq(t)
 
-	s.Send("CONNECT", hdr{"version": "1.1"}, "")
+	s.Send("CONNECT", hdr{"accept-version": "1.1"}, "")
 	s.Expect("ERROR")
 	s.Finish()
 }
@@ -89,7 +89,7 @@ func TestBadVersion1(t *testing.T) {
 func TestBadVersion2(t *testing.T) {
 	s := newSimpleSeq(t)
 
-	s.Send("CONNECT", hdr{"version": "1.1,1.3,blarg"}, "")
+	s.Send("CONNECT", hdr{"accept-version": "1.1,1.3,blarg"}, "")
 	s.Expect("ERROR")
 	s.Finish()
 }
@@ -97,7 +97,7 @@ func TestBadVersion2(t *testing.T) {
 func TestConnection1(t *testing.T) {
 	s := newSimpleSeq(t)
 
-	s.Send("CONNECT", hdr{"version": "1.2"}, "")
+	s.Send("CONNECT", hdr{"accept-version": "1.2"}, "")
 	s.Expect("CONNECTED")
 	s.Send("DISCONNECT", hdr{"receipt": "yoh"}, "")
 	s.ExpectHeaders("RECEIPT", hdr{"receipt-id": "yoh"})
@@ -107,7 +107,7 @@ func TestConnection1(t *testing.T) {
 func TestConnection2(t *testing.T) {
 	s := newSimpleSeq(t)
 
-	s.Send("CONNECT", hdr{"version": "1.2"}, "")
+	s.Send("CONNECT", hdr{"accept-version": "1.2"}, "")
 	s.Expect("CONNECTED")
 	s.Send("DISCONNECT", hdr{"receipt": "yoh"}, "")
 	s.ExpectHeaders("RECEIPT", hdr{"receipt-id": "yoh"})
