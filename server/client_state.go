@@ -94,10 +94,10 @@ func (cs *clientState) HandleIncomingFrames(getFrame frameProvider) {
 				break
 			}
 
-			supVersion, ok := curFrame.Headers.Get("version")
+			supVersion, ok := curFrame.Headers.Get("accept-version")
 
 			if !ok {
-				cs.ErrorString("a version header is required")
+				cs.ErrorString("an accept-version header is required")
 				break
 			}
 
