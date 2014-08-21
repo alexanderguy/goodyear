@@ -148,6 +148,31 @@ func (f *Frame) readBody(r *bufio.Reader) error {
 	return nil
 }
 
+func (f *Frame) BodyEmpty() bool {
+	switch {
+	case f.Body == nil:
+		return true
+	case len(f.Body) == 0:
+		return true
+	default:
+		return false
+	}
+}
+
+func (f *Frame) ValidateFrame() error {
+	switch (f.Cmd) {
+	case "SEND":
+	case "MESSAGE":
+	case "ERROR":
+	default:
+		if !f.BodyEmpty() {
+			return errors.New("body not valid for this command.")
+		}
+	}
+
+	return nil
+}
+
 func (f *Frame) Bytes() []byte {
 	var buf bytes.Buffer
 	buf.Write([]byte(fmt.Sprintf("%s\r\n", f.Cmd)))
