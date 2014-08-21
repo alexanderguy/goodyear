@@ -82,6 +82,11 @@ func (cs *clientState) HandleIncomingFrames(getFrame frameProvider) {
 			return
 		}
 
+		if err := curFrame.ValidateFrame(); err != nil {
+			cs.ErrorString(err.Error())
+			break
+		}
+
 		switch curFrame.Cmd {
 		case "CONNECT", "STOMP":
 			if _, ok := curFrame.Headers.Get("receipt"); ok {
@@ -129,6 +134,11 @@ func (cs *clientState) HandleIncomingFrames(getFrame frameProvider) {
 		processFrame()
 		if curFrame == nil {
 			return
+		}
+
+		if err := curFrame.ValidateFrame(); err != nil {
+			cs.ErrorString(err.Error())
+			break
 		}
 
 		switch curFrame.Cmd {
