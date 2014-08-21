@@ -113,3 +113,23 @@ func TestConnection2(t *testing.T) {
 	s.ExpectHeaders("RECEIPT", hdr{"receipt-id": "yoh"})
 	s.Finish()
 }
+
+func TestSendFailure1(t *testing.T) {
+	s := newSimpleSeq(t)
+
+	s.Send("CONNECT", hdr{"accept-version": "1.2"}, "")
+	s.Expect("CONNECTED")
+	s.Send("SEND", hdr{}, "")
+	s.Expect("ERROR")
+	s.Finish()
+}
+
+func TestSend1(t *testing.T) {
+	s := newSimpleSeq(t)
+
+	s.Send("CONNECT", hdr{"accept-version": "1.2"}, "")
+	s.Expect("CONNECTED")
+	s.Send("SEND", hdr{"destination": "queue/someplace"}, "")
+	s.Send("DISCONNECT", hdr{}, "")
+	s.Finish()
+}

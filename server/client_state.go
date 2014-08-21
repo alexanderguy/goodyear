@@ -149,6 +149,14 @@ func (cs *clientState) HandleIncomingFrames(getFrame frameProvider) {
 			log.Printf("conn %d requested disconnect", cs.id)
 			cs.phase = disconnected
 
+		case "SEND":
+			dest, ok := curFrame.Headers.Get("destination")
+			if !ok {
+				cs.ErrorString("SEND requires a destination.")
+			}
+
+			log.Printf("conn %d sending to destination %s", cs.id, dest)
+
 		default:
 			cs.ErrorString("unknown command.")
 		}
