@@ -7,7 +7,22 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"fmt"
 )
+
+type clientSubAckMode int
+
+const (
+	ackModeAuto clientSubAckMode = iota
+	ackModeClient
+	ackModeClientIndividual
+)
+
+type clientSub struct {
+	id string
+	dest string
+	ackMode clientSubAckMode
+}
 
 type clientStatePhase int
 
@@ -43,6 +58,39 @@ func (cs *clientState) Error(ct string, body []byte) error {
 func (cs *clientState) ErrorString(msg string) error {
 	msg += "\r\n"
 	return cs.Error("text/plain", []byte(msg))
+}
+
+func (cs *clientState) handleCmdSUBSCRIBE(f *frame.Frame) {
+	s := clientSub{}
+
+	if id, ok := f.Headers.Get("id"); ok && len(id) > 0 {
+		s.id = id
+	} else {
+		cs.ErrorString("id header required on SUBSCRIBE")
+		return
+	}
+
+	if ack, ok := f.Headers.Get("ack"); ok {
+		switch (ack) {
+		case "auto":
+			s.ackMode = ackModeAuto
+		case "client":
+			s.ackMode = ackModeClient
+		case "client-individual":
+			s.ackMode = ackModeClientIndividual
+		default:
+			cs.ErrorString(fmt.Sprintf("ack mode '%s' invalid on SUBSCRIBE", ack))
+			return
+		}
+	} else {
+		s.ackMode = ackModeAuto
+	}
+
+	if dest, ok := f.Headers.Get("destination"); ok && len(dest) > 1 {
+		s.dest = dest
+	} else {
+		cs.ErrorString("a destination headers is required for SUBSCRIBE")
+	}
 }
 
 type frameProvider func() *frame.Frame
@@ -148,6 +196,9 @@ func (cs *clientState) HandleIncomingFrames(getFrame frameProvider) {
 		case "DISCONNECT":
 			log.Printf("conn %d requested disconnect", cs.id)
 			cs.phase = disconnected
+
+		case "SUBSCRIBE":
+			cs.handleCmdSUBSCRIBE(curFrame)
 
 		case "SEND":
 			dest, ok := curFrame.Headers.Get("destination")
