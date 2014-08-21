@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"sync"
+	"goodyear/dest"
 )
 
 type serverState struct {
@@ -23,6 +24,9 @@ func main() {
 	state := serverState{}
 	state.serial = 0
 	state.conns = list.New()
+
+	d := dest.NewBroadcast()
+	dest.AddDest("everyone", d)
 
 	log.Print("Listening on address ", LISTENING_ADDR)
 	l, err := net.Listen("tcp", LISTENING_ADDR)

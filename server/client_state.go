@@ -1,6 +1,7 @@
 package main
 
 import (
+	"goodyear/dest"
 	"goodyear/frame"
 	// XXX - We need to not use this directly,
 	// since we need to support levels.
@@ -8,21 +9,8 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"sync"
 )
-
-type clientSubAckMode int
-
-const (
-	ackModeAuto clientSubAckMode = iota
-	ackModeClient
-	ackModeClientIndividual
-)
-
-type clientSub struct {
-	id      string
-	dest    string
-	ackMode clientSubAckMode
-}
 
 type clientStatePhase int
 
@@ -38,6 +26,9 @@ type clientState struct {
 	id       int
 	version  string
 	outgoing chan *frame.Frame
+	subs     map[string]*clientSub
+	incomingMsgs chan *clientSubMessage
+	ackId    int
 }
 
 func (cs *clientState) Error(ct string, body []byte) error {
@@ -60,8 +51,9 @@ func (cs *clientState) ErrorString(msg string) error {
 	return cs.Error("text/plain", []byte(msg))
 }
 
-func (cs *clientState) handleCmdSUBSCRIBE(f *frame.Frame) {
-	s := clientSub{}
+func (cs *clientState) handleCmdSubscribe(f *frame.Frame) {
+	s := &clientSub{}
+	s.client = cs
 
 	if id, ok := f.Headers.Get("id"); ok && len(id) > 0 {
 		s.id = id
@@ -86,10 +78,36 @@ func (cs *clientState) handleCmdSUBSCRIBE(f *frame.Frame) {
 		s.ackMode = ackModeAuto
 	}
 
-	if dest, ok := f.Headers.Get("destination"); ok && len(dest) > 1 {
-		s.dest = dest
+	if dst, ok := f.Headers.Get("destination"); ok && len(dst) > 1 {
+		s.dest = dest.DestId(dst)
 	} else {
 		cs.ErrorString("a destination headers is required for SUBSCRIBE")
+		return
+	}
+
+	if _, exists := cs.subs[s.id]; exists {
+		cs.ErrorString(fmt.Sprintf("a subscription IDed '%s' already exists.", s.id))
+		return
+	}
+
+	if err := dest.Subscribe(s.dest, s); err != nil {
+		cs.ErrorString(fmt.Sprintf("failed to subscribe '%s'", err))
+		return
+	}
+
+	cs.subs[s.id] = s
+}
+
+func (cs *clientState) handleCmdUnsubscribe(curFrame *frame.Frame) {
+	if id, ok := curFrame.Headers.Get("id"); ok {
+		if sub, exists := cs.subs[id]; exists {
+			dest.Unsubscribe(sub.dest, sub)
+			delete(cs.subs, id)
+		} else {
+			cs.ErrorString(fmt.Sprintf("subscription id '%s' doesn't exist.", id))
+		}
+	} else {
+		cs.ErrorString("an id is required to UNSUBSCRIBE.")
 	}
 }
 
@@ -97,8 +115,40 @@ type frameProvider func() *frame.Frame
 
 func (cs *clientState) HandleIncomingFrames(getFrame frameProvider) {
 	defer func() {
-		// Signal the outgoing goroutine to close things out.
+		for _, sub := range(cs.subs) {
+			dest.Unsubscribe(sub.dest, sub)
+		}
+
+		// Clean up everything.
 		close(cs.outgoing)
+		close(cs.incomingMsgs)
+	}()
+
+	go func() {
+		for subMsg := range cs.incomingMsgs {
+			sub := subMsg.sub
+			msg := subMsg.msg
+
+			f := frame.NewFrame()
+			f.Cmd = "MESSAGE"
+			f.Headers.Add("subscription", sub.id)
+			if sub.ackMode != ackModeAuto {
+				f.Headers.Add("ack", strconv.FormatUint(uint64(cs.ackId), 10))
+				cs.ackId++
+			}
+
+			for k, values := range msg.Frame.Headers {
+				for _, v := range values {
+					f.Headers.Add(k, v)
+				}
+			}
+
+			f.Body = subMsg.msg.Frame.Body
+
+			// XXX - We need to implement ack handling here.
+
+			cs.outgoing <-f
+		}
 	}()
 
 	var curFrame *frame.Frame
@@ -198,16 +248,19 @@ func (cs *clientState) HandleIncomingFrames(getFrame frameProvider) {
 			cs.phase = disconnected
 
 		case "SUBSCRIBE":
-			cs.handleCmdSUBSCRIBE(curFrame)
+			cs.handleCmdSubscribe(curFrame)
+
+		case "UNSUBSCRIBE":
+			cs.handleCmdUnsubscribe(curFrame)
 
 		case "SEND":
-			dest, ok := curFrame.Headers.Get("destination")
+			dst, ok := curFrame.Headers.Get("destination")
 			if !ok {
 				cs.ErrorString("SEND requires a destination.")
 			}
 
-			log.Printf("conn %d sending to destination %s", cs.id, dest)
-
+			log.Printf("conn %d sending to destination %s", cs.id, dst)
+			dest.Send(dest.DestId(dst), curFrame)
 		default:
 			cs.ErrorString("unknown command.")
 		}
@@ -220,8 +273,11 @@ func newClientState(connId int) *clientState {
 	cs := &clientState{}
 	cs.phase = opened
 	cs.id = connId
+	cs.ackId = 0
 	cs.version = ""
 	cs.outgoing = make(chan *frame.Frame, 0)
+	cs.subs = make(map[string]*clientSub)
+	cs.incomingMsgs = make(chan *clientSubMessage)
 
 	return cs
 }
