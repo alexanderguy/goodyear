@@ -130,6 +130,7 @@ func (cs *clientState) HandleIncomingFrames(getFrame frameProvider) {
 
 			f := frame.NewFrame()
 			f.Cmd = "MESSAGE"
+			f.Headers.Add("message-id", strconv.FormatUint(msg.Id, 10))
 			f.Headers.Add("subscription", sub.id)
 			if sub.ackMode != ackModeAuto {
 				f.Headers.Add("ack", strconv.FormatUint(uint64(cs.ackId), 10))

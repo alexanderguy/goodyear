@@ -6,6 +6,7 @@ import (
 
 type Message struct {
 	Frame *frame.Frame
+	Id uint64
 }
 
 func Ack(m *Message) {

@@ -3,6 +3,7 @@ package dest
 import (
 	"errors"
 	"goodyear/frame"
+	"sync"
 )
 
 type Sub interface {
@@ -35,6 +36,7 @@ func Unsubscribe(id DestId, s Sub) error {
 
 func Send(id DestId, f *frame.Frame) error {
 	m := NewMessage(f)
+	m.Id = getNextMessageId()
 
 	if dst, exists := destManager.dests[id]; exists {
 		return dst.Send(m)
@@ -53,14 +55,26 @@ func AddDest(id DestId, d Dest) error {
 	return nil
 }
 
+func getNextMessageId() uint64 {
+	defer destManager.messageIdLock.Unlock()
+	destManager.messageIdLock.Lock()
+	v := destManager.nextMessageId
+
+	destManager.nextMessageId++
+
+	return v
+
+}
+
 type destNamespace struct {
 	dests map[DestId]Dest
+	messageIdLock sync.RWMutex
+	nextMessageId uint64
 }
 
 var destManager *destNamespace
 
 func init() {
-	destManager = &destNamespace{
-		make(map[DestId]Dest),
-	}
+	destManager = &destNamespace{}
+	destManager.dests = make(map[DestId]Dest)
 }
