@@ -6,7 +6,6 @@ import (
 
 type Message struct {
 	Frame *frame.Frame
-
 }
 
 func Ack(m *Message) {
@@ -21,4 +20,3 @@ func NewMessage(f *frame.Frame) *Message {
 
 	return m
 }
-

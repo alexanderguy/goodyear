@@ -7,14 +7,14 @@ import (
 
 type Broadcast struct {
 	subsLock sync.RWMutex
-	subs []Sub
+	subs     []Sub
 }
 
 func (b *Broadcast) Subscribe(s Sub) error {
 	b.subsLock.Lock()
 	defer b.subsLock.Unlock()
 
-	for _, v := range(b.subs) {
+	for _, v := range b.subs {
 		if v == s {
 			return errors.New("this subscription has already been created")
 		}
@@ -32,7 +32,7 @@ func (b *Broadcast) Unsubscribe(s Sub) error {
 	count := len(b.subs)
 	for i := 0; i < count; i++ {
 		if b.subs[i] == s {
-			b.subs[i], b.subs[count - 1] = b.subs[count - 1], b.subs[i]
+			b.subs[i], b.subs[count-1] = b.subs[count-1], b.subs[i]
 			count--
 		}
 	}

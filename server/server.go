@@ -6,10 +6,10 @@ import (
 	"goodyear/frame"
 	// XXX - We need to not use this directly,
 	// since we need to support levels.
+	"goodyear/dest"
 	"log"
 	"net"
 	"sync"
-	"goodyear/dest"
 )
 
 type serverState struct {

@@ -1,12 +1,12 @@
 package dest
 
 import (
-	"testing"
 	"goodyear/frame"
+	"testing"
 )
 
 type MockSub struct {
-	t *testing.T
+	t  *testing.T
 	id string
 }
 

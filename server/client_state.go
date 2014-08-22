@@ -22,13 +22,13 @@ const (
 )
 
 type clientState struct {
-	phase    clientStatePhase
-	id       int
-	version  string
-	outgoing chan *frame.Frame
-	subs     map[string]*clientSub
+	phase        clientStatePhase
+	id           int
+	version      string
+	outgoing     chan *frame.Frame
+	subs         map[string]*clientSub
 	incomingMsgs chan *clientSubMessage
-	ackId    int
+	ackId        int
 }
 
 func (cs *clientState) Error(ct string, body []byte) error {
@@ -115,7 +115,7 @@ type frameProvider func() *frame.Frame
 
 func (cs *clientState) HandleIncomingFrames(getFrame frameProvider) {
 	defer func() {
-		for _, sub := range(cs.subs) {
+		for _, sub := range cs.subs {
 			dest.Unsubscribe(sub.dest, sub)
 		}
 
@@ -147,7 +147,7 @@ func (cs *clientState) HandleIncomingFrames(getFrame frameProvider) {
 
 			// XXX - We need to implement ack handling here.
 
-			cs.outgoing <-f
+			cs.outgoing <- f
 		}
 	}()
 

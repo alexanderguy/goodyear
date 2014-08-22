@@ -160,12 +160,12 @@ func (f *Frame) BodyEmpty() bool {
 }
 
 func (f *Frame) ValidateFrame() error {
-	switch (f.Cmd) {
+	switch f.Cmd {
 	case "CONNECT", "STOMP":
 		// XXX - We need to check the host header here.
 	}
 
-	switch (f.Cmd) {
+	switch f.Cmd {
 	case "SEND":
 	case "MESSAGE":
 	case "ERROR":

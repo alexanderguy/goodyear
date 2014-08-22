@@ -49,7 +49,7 @@ func AddDest(id DestId, d Dest) error {
 	}
 
 	destManager.dests[id] = d
-		
+
 	return nil
 }
 

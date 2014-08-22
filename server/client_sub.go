@@ -26,7 +26,7 @@ type clientSubMessage struct {
 
 func (sub *clientSub) Send(m *dest.Message) error {
 	v := &clientSubMessage{sub, m}
-	sub.client.incomingMsgs <-v
+	sub.client.incomingMsgs <- v
 
 	return nil
 }
