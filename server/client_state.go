@@ -9,7 +9,6 @@ import (
 	"log"
 	"strconv"
 	"strings"
-	"sync"
 )
 
 type clientStatePhase int
